@@ -1,5 +1,21 @@
 {
   "name": "totara/installer",
   "type": "composer-plugin",
-  "license": "MIT"
+  "license": "MIT",
+  "autoload": {
+    "psr-4": {
+      "TotaraInstaller\\": "src/"
+    }
+  },
+  "extra": {
+    "plugin-modifies-install-path": true,
+    "class": "TotaraInstaller\\TotaraInstallerPlugin"
+  },
+  "require-dev": {
+    "composer/composer": "^2.8",
+    "phpunit/phpunit": "^11"
+  },
+  "require": {
+    "composer-plugin-api": "^2.6"
+  }
 }
