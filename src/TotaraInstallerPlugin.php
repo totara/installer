@@ -39,6 +39,8 @@ class TotaraInstallerPlugin implements PluginInterface, EventSubscriberInterface
      * @return array[]
      */
     public static function getSubscribedEvents() {
+        return [];
+
         // return [
         //     // Run the install as late as possible
         //     PackageEvents::POST_PACKAGE_INSTALL => [
