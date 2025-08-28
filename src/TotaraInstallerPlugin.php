@@ -39,22 +39,22 @@ class TotaraInstallerPlugin implements PluginInterface, EventSubscriberInterface
      * @return array[]
      */
     public static function getSubscribedEvents() {
-        return [
-            // Run the install as late as possible
-            PackageEvents::POST_PACKAGE_INSTALL => [
-                'eventListener',
-                PHP_INT_MAX
-            ],
-            PackageEvents::POST_PACKAGE_UPDATE => [
-                'eventListener',
-                PHP_INT_MAX
-            ],
-            // Run the uninstall as early as possible
-            PackageEvents::POST_PACKAGE_UNINSTALL => [
-                'eventListener',
-                PHP_INT_MIN
-            ],
-        ];
+        // return [
+        //     // Run the install as late as possible
+        //     PackageEvents::POST_PACKAGE_INSTALL => [
+        //         'eventListener',
+        //         PHP_INT_MAX
+        //     ],
+        //     PackageEvents::POST_PACKAGE_UPDATE => [
+        //         'eventListener',
+        //         PHP_INT_MAX
+        //     ],
+        //     // Run the uninstall as early as possible
+        //     PackageEvents::POST_PACKAGE_UNINSTALL => [
+        //         'eventListener',
+        //         PHP_INT_MIN
+        //     ],
+        // ];
     }
 
     /**
