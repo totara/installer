@@ -9,7 +9,10 @@
   },
   "extra": {
     "plugin-modifies-install-path": true,
-    "class": "TotaraInstaller\\TotaraInstallerPlugin"
+    "class": "TotaraInstaller\\TotaraInstallerPlugin",
+    "branch-alias": {
+      "dev-main": "1.0.x-dev"
+    }
   },
   "require-dev": {
     "composer/composer": "^2.8",
