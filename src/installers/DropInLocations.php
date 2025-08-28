@@ -63,7 +63,7 @@ trait DropInLocations {
         'webservice'         => 'server/webservice/{$name}/',
         'workshopallocation' => 'server/mod/workshop/allocation/{$name}/',
         'workshopeval'       => 'server/mod/workshop/eval/{$name}/',
-        'workshopform'       => 'server/mod/workshop/form/{$name}/'
+        'workshopform'       => 'server/mod/workshop/form/{$name}/',
         'dev'                => 'dev/{$name}/'
     );
 
