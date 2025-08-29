@@ -39,24 +39,22 @@ class TotaraInstallerPlugin implements PluginInterface, EventSubscriberInterface
      * @return array[]
      */
     public static function getSubscribedEvents() {
-        return [];
-
-        // return [
-        //     // Run the install as late as possible
-        //     PackageEvents::POST_PACKAGE_INSTALL => [
-        //         'eventListener',
-        //         PHP_INT_MAX
-        //     ],
-        //     PackageEvents::POST_PACKAGE_UPDATE => [
-        //         'eventListener',
-        //         PHP_INT_MAX
-        //     ],
-        //     // Run the uninstall as early as possible
-        //     PackageEvents::POST_PACKAGE_UNINSTALL => [
-        //         'eventListener',
-        //         PHP_INT_MIN
-        //     ],
-        // ];
+        return [
+            // Run the install as late as possible
+            PackageEvents::POST_PACKAGE_INSTALL => [
+                'eventListener',
+                PHP_INT_MAX
+            ],
+            PackageEvents::POST_PACKAGE_UPDATE => [
+                'eventListener',
+                PHP_INT_MAX
+            ],
+            // Run the uninstall as early as possible
+            PackageEvents::PRE_PACKAGE_UNINSTALL => [
+                'eventListener',
+                PHP_INT_MIN
+            ],
+        ];
     }
 
     /**
@@ -77,7 +75,7 @@ class TotaraInstallerPlugin implements PluginInterface, EventSubscriberInterface
         match ($event->getName()) {
             PackageEvents::POST_PACKAGE_INSTALL => Handler::onInstall($event, $locker),
             PackageEvents::POST_PACKAGE_UPDATE => Handler::onUpdate($event, $locker),
-            PackageEvents::POST_PACKAGE_UNINSTALL => Handler::onUninstall($event, $locker),
+            PackageEvents::PRE_PACKAGE_UNINSTALL => Handler::onUninstall($event, $locker),
         };
     }
 }

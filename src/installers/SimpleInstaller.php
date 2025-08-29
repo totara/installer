@@ -31,7 +31,7 @@ class SimpleInstaller extends LibraryInstaller {
 
         $path = self::getLocationFromPackageType($package->getType());
         $path = str_replace('{$name}', $name, $path);
-        return rtrim($path, DIRECTORY_SEPARATOR);
+        return rtrim($path, '/');
     }
 
     /**

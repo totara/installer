@@ -8,6 +8,7 @@ use Composer\Installer\InstallationManager;
 use Composer\Installer\PackageEvent;
 use Composer\Package\PackageInterface;
 use Composer\Util\Filesystem;
+use Composer\Util\Platform;
 use JsonException;
 use TotaraInstaller\ClientLocker;
 use TotaraInstaller\installers\DropInLocations;
@@ -32,6 +33,7 @@ final class Handler {
         $operation = $event->getOperation();
         $package = $operation->getPackage();
         $io = $event->getIO();
+        $manager = $event->getComposer()->getInstallationManager();
 
         // Sanity check - the package is valid for our installer?
         if (!self::getLocationFromPackageType($package->getType())) {
@@ -43,7 +45,7 @@ final class Handler {
         $io->write("[TotaraInstaller] Package installation");
 
         // Figure out if this package has a client component at all (install, we treat it fresh)
-        [$component_name, $source_path] = self::discover_client_path($event->getComposer()->getInstallationManager(), $package);
+        [$component_name, $source_path] = self::discover_client_path($manager, $package);
 
         // If we have no name or source, we have nothing to install
         if (empty($component_name) || empty($source_path)) {
@@ -52,20 +54,24 @@ final class Handler {
         }
 
         // Figure out where we want to install the content to
-        $destination_path = str_replace('{$name}', $component_name, self::getLocationFromPackageType('totara-client'));
+        $destination_path = rtrim(str_replace('{$name}', $component_name, self::getLocationFromPackageType('totara-client')), '/');
         if (is_dir($destination_path)) {
             $io->error("[TotaraInstaller][{$package->getName()}] There already was a package in {$destination_path} when we tried to install it. Halting.");
             return null;
         }
 
         $file_system = new Filesystem();
-        // Shift the client folder in place, depending the type of installation
-        if ($package->getInstallationSource() === 'dist') {
+        $is_symlink_install = $file_system->isSymlinkedDirectory($manager->getInstallPath($package));
+        if ($is_symlink_install) {
+            $cwd = Platform::getCwd();
+            $file_system->relativeSymlink(
+                $cwd . DIRECTORY_SEPARATOR . $source_path,
+                $cwd . DIRECTORY_SEPARATOR . $destination_path
+            );
+            $io->debug("[TotaraInstaller] Package {$package->getName()} client symlinked from '{$source_path}' to '{$destination_path}'");
+        } else {
             $file_system->rename($source_path, $destination_path);
             $io->debug("[TotaraInstaller] Package {$package->getName()} client moved from '{$source_path}' to '{$destination_path}'");
-        } else {
-            $file_system->relativeSymlink($source_path, $destination_path);
-            $io->debug("[TotaraInstaller] Package {$package->getName()} client symlinked from '{$source_path}' to '{$destination_path}'");
         }
 
         $locker->add_package($package->getName(), [
@@ -84,6 +90,7 @@ final class Handler {
         $io = $event->getIO();
         $initial_package = $operation->getInitialPackage();
         $target_package = $operation->getTargetPackage();
+        $manager = $event->getComposer()->getInstallationManager();
 
         // Sanity check - the package is valid for our installer?
         if (!self::getLocationFromPackageType($initial_package->getType())) {
@@ -117,20 +124,24 @@ final class Handler {
         }
 
         // Figure out where we want to install the content to
-        $destination_path = str_replace('{$name}', $component_name, self::getLocationFromPackageType('totara-client'));
+        $destination_path = rtrim(str_replace('{$name}', $component_name, self::getLocationFromPackageType('totara-client')), '/');
         if (is_dir($destination_path)) {
             $io->error("[TotaraInstaller][{$target_package->getName()}] There already was a package in {$destination_path} when we tried to upgrade it. Halting.");
             return null;
         }
 
         $file_system = new Filesystem();
-        // Shift the client folder in place, depending the type of installation
-        if ($target_package->getInstallationSource() === 'dist') {
+        $is_symlink_install = $file_system->isSymlinkedDirectory($manager->getInstallPath($target_package));
+        if ($is_symlink_install) {
+            $cwd = Platform::getCwd();
+            $file_system->relativeSymlink(
+                $cwd . DIRECTORY_SEPARATOR . $source_path,
+                $cwd . DIRECTORY_SEPARATOR . $destination_path
+            );
+            $io->debug("[TotaraInstaller] Package {$target_package->getName()} client symlinked from '{$source_path}' to '{$destination_path}'");
+        } else {
             $file_system->rename($source_path, $destination_path);
             $io->debug("[TotaraInstaller] Package {$target_package->getName()} client moved from '{$source_path}' to '{$destination_path}'");
-        } else {
-            $file_system->relativeSymlink($source_path, $destination_path);
-            $io->debug("[TotaraInstaller] Package {$target_package->getName()} client symlinked from '{$source_path}' to '{$destination_path}'");
         }
 
         $locker->add_package($target_package->getName(), [
@@ -164,21 +175,24 @@ final class Handler {
         // Do we have an entry already?
         $locked = $locker->get_package($package->getName());
         if (!$locked) {
+            $io->debug("[TotaraInstaller] No client package lock entry - skipping post uninstallation");
             // Nothing to do
             return null;
         }
 
         // Does our path exist?
         $client_path = $locked['destination_path'];
-        if (!is_dir($client_path)) {
+        if (!is_dir($client_path) && !is_link($client_path)) {
+            $io->debug("[TotaraInstaller] Client package lock entry dir ($client_path) does not exist, skipping");
             // Nothing to remove
             return null;
         }
 
         $fs = new Filesystem();
         $fs->remove($client_path);
+        $io->debug("[TotaraInstaller] Removed client component $client_path provided by {$package->getName()}");
 
-        $locker->delete_package($package->getName());
+        $locker->delete_package($package->getName())->save();
     }
 
     /**
