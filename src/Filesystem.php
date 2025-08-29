@@ -12,7 +12,7 @@ class Filesystem {
      * @return void
      */
     public function write_json(?array $json_data): void {
-        file_put_contents($this->file_path, json_encode($json_data, JSON_PRETTY_PRINT));
+        file_put_contents($this->file_path, json_encode($json_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
 
     /**
@@ -26,8 +26,13 @@ class Filesystem {
         return null;
     }
 
-    public function unlink(): void {
-        unlink($this->file_path);
+    /**
+     * Delete a file.
+     *
+     * @return bool success
+     */
+    public function unlink(): bool {
+        return @unlink($this->file_path);
     }
 
     /**

@@ -6,6 +6,7 @@ use Composer\DependencyResolver\Operation\InstallOperation;
 use Composer\DependencyResolver\Operation\UpdateOperation;
 use Composer\Installer\InstallationManager;
 use Composer\Installer\PackageEvent;
+use Composer\IO\IOInterface;
 use Composer\Package\PackageInterface;
 use Composer\Util\Filesystem;
 use Composer\Util\Platform;
@@ -28,7 +29,7 @@ final class Handler {
      * @param ClientLocker $locker
      * @return void
      */
-    public static function onInstall(PackageEvent $event, ClientLocker $locker) {
+    public static function onInstall(PackageEvent $event, ClientLocker $locker): void {
         /** @var InstallOperation $operation */
         $operation = $event->getOperation();
         $package = $operation->getPackage();
@@ -37,53 +38,26 @@ final class Handler {
 
         // Sanity check - the package is valid for our installer?
         if (!self::getLocationFromPackageType($package->getType())) {
-            $io->debug("[TotaraInstaller] Package installation");
-            $io->debug("[TotaraInstaller] Package wasn't valid for Totara - skipping post installation");
+            // not a Totara package
             return;
         }
 
-        $io->write("[TotaraInstaller] Package installation");
+        $io->write("[TotaraInstaller][{$package->getName()}] Package installation");
 
-        // Figure out if this package has a client component at all (install, we treat it fresh)
-        [$component_name, $source_path] = self::discover_client_path($manager, $package);
+        static::installClient($package, $locker, $io, $manager);
 
-        // If we have no name or source, we have nothing to install
-        if (empty($component_name) || empty($source_path)) {
-            $io->write("[TotaraInstaller] No client component detected, moving onwards.");
-            return null;
-        }
-
-        // Figure out where we want to install the content to
-        $destination_path = rtrim(str_replace('{$name}', $component_name, self::getLocationFromPackageType('totara-client')), '/');
-        if (is_dir($destination_path)) {
-            $io->error("[TotaraInstaller][{$package->getName()}] There already was a package in {$destination_path} when we tried to install it. Halting.");
-            return null;
-        }
-
-        $file_system = new Filesystem();
-        $is_symlink_install = $file_system->isSymlinkedDirectory($manager->getInstallPath($package));
-        if ($is_symlink_install) {
-            $cwd = Platform::getCwd();
-            $file_system->relativeSymlink(
-                $cwd . DIRECTORY_SEPARATOR . $source_path,
-                $cwd . DIRECTORY_SEPARATOR . $destination_path
-            );
-            $io->debug("[TotaraInstaller] Package {$package->getName()} client symlinked from '{$source_path}' to '{$destination_path}'");
-        } else {
-            $file_system->rename($source_path, $destination_path);
-            $io->debug("[TotaraInstaller] Package {$package->getName()} client moved from '{$source_path}' to '{$destination_path}'");
-        }
-
-        $locker->add_package($package->getName(), [
-            'component_name' => $component_name,
-            'source_path' => $source_path,
-            'destination_path' => $destination_path,
-        ])->save();
+        $locker->save();
     }
 
-    public static function onUpdate(PackageEvent $event, ClientLocker $locker) {
+    /**
+     * On update, uninstall and reinstall client.
+     *
+     * @param PackageEvent $event
+     * @param ClientLocker $locker
+     * @return void
+     */
+    public static function onUpdate(PackageEvent $event, ClientLocker $locker): void {
         // For sanity's sake we treat updates as a remove / install again.
-        $event->getIO()->write("[TotaraInstaller] Package update");
 
         /** @var UpdateOperation $operation */
         $operation = $event->getOperation();
@@ -94,61 +68,19 @@ final class Handler {
 
         // Sanity check - the package is valid for our installer?
         if (!self::getLocationFromPackageType($initial_package->getType())) {
-            $io->debug("[TotaraInstaller] Package wasn't valid for Totara - skipping post update");
+            // not a Totara package
             return;
         }
 
+        $io->write("[TotaraInstaller][{$target_package->getName()}] Package update");
+
         // Uninstall First
-        // Do we have an entry already?
-        $locked = $locker->get_package($initial_package->getName());
-        if ($locked) {
-            // Handle the uninstall
-            $client_path = $locked['destination_path'];
-            if (!is_dir($client_path)) {
-                // Nothing to remove
-                return null;
-            }
-
-            $fs = new Filesystem();
-            $fs->remove($client_path);
-
-            $locker->delete_package($initial_package->getName());
-        }
+        static::uninstallClient($initial_package, $locker, $io);
 
         // Install Second
-        [$component_name, $source_path] = self::discover_client_path($event->getComposer()->getInstallationManager(), $target_package);
+        static::installClient($target_package, $locker, $io, $manager);
 
-        // If we have no name or source, we have nothing to install
-        if (empty($component_name) || empty($source_path)) {
-            return null;
-        }
-
-        // Figure out where we want to install the content to
-        $destination_path = rtrim(str_replace('{$name}', $component_name, self::getLocationFromPackageType('totara-client')), '/');
-        if (is_dir($destination_path)) {
-            $io->error("[TotaraInstaller][{$target_package->getName()}] There already was a package in {$destination_path} when we tried to upgrade it. Halting.");
-            return null;
-        }
-
-        $file_system = new Filesystem();
-        $is_symlink_install = $file_system->isSymlinkedDirectory($manager->getInstallPath($target_package));
-        if ($is_symlink_install) {
-            $cwd = Platform::getCwd();
-            $file_system->relativeSymlink(
-                $cwd . DIRECTORY_SEPARATOR . $source_path,
-                $cwd . DIRECTORY_SEPARATOR . $destination_path
-            );
-            $io->debug("[TotaraInstaller] Package {$target_package->getName()} client symlinked from '{$source_path}' to '{$destination_path}'");
-        } else {
-            $file_system->rename($source_path, $destination_path);
-            $io->debug("[TotaraInstaller] Package {$target_package->getName()} client moved from '{$source_path}' to '{$destination_path}'");
-        }
-
-        $locker->add_package($target_package->getName(), [
-            'component_name' => $component_name,
-            'source_path' => $source_path,
-            'destination_path' => $destination_path,
-        ])->save();
+        $locker->save();
     }
 
     /**
@@ -156,11 +88,9 @@ final class Handler {
      *
      * @param PackageEvent $event
      * @param ClientLocker $locker
-     * @return void|null
+     * @return void
      */
-    public static function onUninstall(PackageEvent $event, ClientLocker $locker) {
-        $event->getIO()->write("[TotaraInstaller] Package uninstallation");
-
+    public static function onUninstall(PackageEvent $event, ClientLocker $locker): void {
         /** @var InstallOperation $operation */
         $operation = $event->getOperation();
         $package = $operation->getPackage();
@@ -168,31 +98,15 @@ final class Handler {
 
         // Sanity check - the package is valid for our installer?
         if (!self::getLocationFromPackageType($package->getType())) {
-            $io->debug("[TotaraInstaller] Package wasn't valid for Totara - skipping post uninstallation");
+            // not a Totara package
             return;
         }
 
-        // Do we have an entry already?
-        $locked = $locker->get_package($package->getName());
-        if (!$locked) {
-            $io->debug("[TotaraInstaller] No client package lock entry - skipping post uninstallation");
-            // Nothing to do
-            return null;
-        }
+        $io->write("[TotaraInstaller][{$package->getName()}] Package uninstallation");
 
-        // Does our path exist?
-        $client_path = $locked['destination_path'];
-        if (!is_dir($client_path) && !is_link($client_path)) {
-            $io->debug("[TotaraInstaller] Client package lock entry dir ($client_path) does not exist, skipping");
-            // Nothing to remove
-            return null;
-        }
+        static::uninstallClient($package, $locker, $io);
 
-        $fs = new Filesystem();
-        $fs->remove($client_path);
-        $io->debug("[TotaraInstaller] Removed client component $client_path provided by {$package->getName()}");
-
-        $locker->delete_package($package->getName())->save();
+        $locker->save();
     }
 
     /**
@@ -219,4 +133,80 @@ final class Handler {
         return [$component_name, $install_source];
     }
 
+    /**
+     * Uninstall package from client directory
+     *
+     * @param PackageInterface $package
+     * @param ClientLocker $locker
+     * @param IOInterface $io
+     * @return void
+     */
+    protected static function uninstallClient(PackageInterface $package, ClientLocker $locker, IOInterface $io): void {
+        // Do we have an entry already?
+        $locked = $locker->get_package($package->getName());
+        if ($locked) {
+            // Handle the uninstall
+            $client_path = $locked['destination_path'];
+            if (!is_dir($client_path)) {
+                // Nothing to remove
+                $io->debug("[TotaraInstaller][{$package->getName()}] Client directory described in lock file ($client_path) does not exist, skipping uninstall");
+                return;
+            }
+
+            $fs = new Filesystem();
+            $fs->remove($client_path);
+
+            $locker->delete_package($package->getName());
+        } else {
+            $io->debug("[TotaraInstaller][{$package->getName()}] No client lock entry - skipping uninstall");
+        }
+    }
+
+
+    /**
+     * Install package to client directory
+     *
+     * @param PackageInterface $package
+     * @param ClientLocker $locker
+     * @param IOInterface $io
+     * @param InstallationManager $manager
+     * @return void
+     */
+    protected static function installClient(PackageInterface $package, ClientLocker $locker, IOInterface $io, InstallationManager $manager): void {
+        // Figure out if this package has a client component at all (install, we treat it fresh)
+        [$component_name, $source_path] = self::discover_client_path($manager, $package);
+
+        // If we have no name or source, we have nothing to install
+        if (empty($component_name) || empty($source_path)) {
+            $io->write("[TotaraInstaller][{$package->getName()}] No client component detected, moving onwards.");
+            return;
+        }
+
+        // Figure out where we want to install the content to
+        $destination_path = rtrim(str_replace('{$name}', $component_name, self::getLocationFromPackageType('totara-client')), '/');
+        if (is_dir($destination_path)) {
+            $io->error("[TotaraInstaller][{$package->getName()}] There already was a package in {$destination_path} when we tried to install it. Halting.");
+            return;
+        }
+
+        $file_system = new Filesystem();
+        $is_symlink_install = $file_system->isSymlinkedDirectory($manager->getInstallPath($package));
+        if ($is_symlink_install) {
+            $cwd = Platform::getCwd();
+            $file_system->relativeSymlink(
+                $cwd . DIRECTORY_SEPARATOR . $source_path,
+                $cwd . DIRECTORY_SEPARATOR . $destination_path
+            );
+            $io->debug("[TotaraInstaller][{$package->getName()}] client symlinked from '{$source_path}' to '{$destination_path}'");
+        } else {
+            $file_system->rename($source_path, $destination_path);
+            $io->debug("[TotaraInstaller][{$package->getName()}] client moved from '{$source_path}' to '{$destination_path}'");
+        }
+
+        $locker->add_package($package->getName(), [
+            'component_name' => $component_name,
+            'source_path' => $source_path,
+            'destination_path' => $destination_path,
+        ]);
+    }
 }
