@@ -162,7 +162,6 @@ final class Handler {
         }
     }
 
-
     /**
      * Install package to client directory
      *
@@ -183,7 +182,7 @@ final class Handler {
         }
 
         // Figure out where we want to install the content to
-        $destination_path = rtrim(str_replace('{$name}', $component_name, self::getLocationFromPackageType('totara-client')), '/');
+        $destination_path = str_replace('{$name}', $component_name, self::getLocationFromPackageType('totara-client'));
         if (is_dir($destination_path)) {
             $io->error("[TotaraInstaller][{$package->getName()}] There already was a package in {$destination_path} when we tried to install it. Halting.");
             return;

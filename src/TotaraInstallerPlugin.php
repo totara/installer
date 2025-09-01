@@ -18,21 +18,6 @@ class TotaraInstallerPlugin implements PluginInterface, EventSubscriberInterface
 
     protected array $installers = [];
 
-    public function activate(Composer $composer, IOInterface $io): void {
-        $simple = new SimpleInstaller($io, $composer);
-
-        $manager = $composer->getInstallationManager();
-        $manager->addInstaller($simple);
-
-        $io->debug('Totara Installers Activated');
-    }
-
-    public function deactivate(Composer $composer, IOInterface $io): void {
-    }
-
-    public function uninstall(Composer $composer, IOInterface $io): void {
-    }
-
     /**
      * Events we listen to for handling custom code
      *
@@ -77,5 +62,20 @@ class TotaraInstallerPlugin implements PluginInterface, EventSubscriberInterface
             PackageEvents::POST_PACKAGE_UPDATE => Handler::onUpdate($event, $locker),
             PackageEvents::PRE_PACKAGE_UNINSTALL => Handler::onUninstall($event, $locker),
         };
+    }
+
+    public function activate(Composer $composer, IOInterface $io): void {
+        $simple = new SimpleInstaller($io, $composer);
+
+        $manager = $composer->getInstallationManager();
+        $manager->addInstaller($simple);
+
+        $io->debug('Totara Installers Activated');
+    }
+
+    public function deactivate(Composer $composer, IOInterface $io): void {
+    }
+
+    public function uninstall(Composer $composer, IOInterface $io): void {
     }
 }

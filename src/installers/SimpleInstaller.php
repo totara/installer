@@ -4,7 +4,6 @@ namespace TotaraInstaller\installers;
 
 use Composer\Installer\LibraryInstaller;
 use Composer\Package\PackageInterface;
-use Composer\Repository\InstalledRepositoryInterface;
 
 /**
  * Installer that installs one package in one location,
@@ -30,8 +29,7 @@ class SimpleInstaller extends LibraryInstaller {
         }
 
         $path = self::getLocationFromPackageType($package->getType());
-        $path = str_replace('{$name}', $name, $path);
-        return rtrim($path, '/');
+        return str_replace('{$name}', $name, $path);
     }
 
     /**
