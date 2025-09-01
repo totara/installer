@@ -3,3 +3,4 @@
 .gitignore       export-ignore
 .git             export-ignore
 tests            export-ignore
+README.md        export-ignore
