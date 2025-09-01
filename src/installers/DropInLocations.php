@@ -61,7 +61,7 @@ trait DropInLocations {
         'tabexport'          => 'server/totara/core/tabexport/{$name}',
         'theme'              => 'server/theme/{$name}',
         'tool'               => 'server/admin/tool/{$name}',
-        'virtualmeeting'     => 'server/integrations/virtualmeeting/{$name}'
+        'virtualmeeting'     => 'server/integrations/virtualmeeting/{$name}',
         'webservice'         => 'server/webservice/{$name}',
         'weka'               => 'server/lib/editor/weka/extensions/{$name}',
         'workshopallocation' => 'server/mod/workshop/allocation/{$name}',
