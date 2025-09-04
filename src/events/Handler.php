@@ -189,14 +189,20 @@ final class Handler {
         }
 
         $file_system = new Filesystem();
-        $is_symlink_install = $file_system->isSymlinkedDirectory($manager->getInstallPath($package));
+        $is_symlink_install = Platform::isWindows()
+            ? $file_system->isJunction($manager->getInstallPath($package))
+            : $file_system->isSymlinkedDirectory($manager->getInstallPath($package));
         if ($is_symlink_install) {
             $cwd = Platform::getCwd();
-            $file_system->relativeSymlink(
-                $cwd . DIRECTORY_SEPARATOR . $source_path,
-                $cwd . DIRECTORY_SEPARATOR . $destination_path
-            );
-            $io->debug("[TotaraInstaller][{$package->getName()}] client symlinked from '{$source_path}' to '{$destination_path}'");
+            $source_absolute = $cwd . DIRECTORY_SEPARATOR . $source_path;
+            $dest_absolute = $cwd . DIRECTORY_SEPARATOR . $destination_path;
+            if (Platform::isWindows()) {
+                $file_system->junction($source_absolute, $dest_absolute);
+            } else {
+                $file_system->relativeSymlink($source_absolute, $dest_absolute);
+            }
+            $verbed = Platform::isWindows() ? 'junctioned' : 'symlinked';
+            $io->debug("[TotaraInstaller][{$package->getName()}] client $verbed from '{$source_path}' to '{$destination_path}'");
         } else {
             $file_system->rename($source_path, $destination_path);
             $io->debug("[TotaraInstaller][{$package->getName()}] client moved from '{$source_path}' to '{$destination_path}'");
