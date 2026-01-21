@@ -26,6 +26,7 @@ trait DropInLocations {
         'cachestore'         => 'server/cache/stores/{$name}',
         'calendartype'       => 'server/calendar/type/{$name}',
         'client'             => 'client/component/{$name}',
+        'contentmarketplace' => 'server/totara/contentmarketplace/contentmarketplaces/{$name}',
         'customfield'        => 'server/totara/customfield/field/{$name}',
         'datafield'          => 'server/mod/data/field/{$name}',
         'datapreset'         => 'server/mod/data/preset/{$name}',
