@@ -116,7 +116,7 @@ final class Handler {
      */
     protected static function discover_client_path(InstallationManager $manager, PackageInterface $package): array {
         $install_source = $manager->getInstallPath($package) . DIRECTORY_SEPARATOR . self::CLIENT_DIR;
-        $component_file = $install_source . DIRECTORY_SEPARATOR . 'tui.json';
+        $component_file = $install_source . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'tui.json';
         $component_name = null;
 
         if (file_exists($component_file)) {
