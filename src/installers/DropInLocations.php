@@ -26,6 +26,7 @@ trait DropInLocations {
         'cachestore'         => 'server/cache/stores/{$name}',
         'calendartype'       => 'server/calendar/type/{$name}',
         'client'             => 'client/component/{$name}',
+        'container'          => 'server/container/type/{$name}',
         'contentmarketplace' => 'server/totara/contentmarketplace/contentmarketplaces/{$name}',
         'customfield'        => 'server/totara/customfield/field/{$name}',
         'datafield'          => 'server/mod/data/field/{$name}',
@@ -39,12 +40,14 @@ trait DropInLocations {
         'gradeimport'        => 'server/grade/import/{$name}',
         'gradereport'        => 'server/grade/report/{$name}',
         'gradingform'        => 'server/grade/grading/form/{$name}',
+        'jsoneditor'         => 'server/text_format/json_editor/extensions/{$name}',
         'local'              => 'server/local/{$name}',
         'logstore'           => 'server/admin/tool/log/store/{$name}',
         'ltisource'          => 'server/mod/lti/source/{$name}',
         'ltiservice'         => 'server/mod/lti/service/{$name}',
         'media'              => 'server/media/player/{$name}',
         'message'            => 'server/message/output/{$name}',
+        'mfa'                => 'server/mfa/factors/{$name}',
         'ml'                 => 'server/ml/{$name}',
         'mod'                => 'server/mod/{$name}',
         'plagiarism'         => 'server/plagiarism/{$name}',
@@ -68,6 +71,9 @@ trait DropInLocations {
         'workshopallocation' => 'server/mod/workshop/allocation/{$name}',
         'workshopeval'       => 'server/mod/workshop/eval/{$name}',
         'workshopform'       => 'server/mod/workshop/form/{$name}',
+
+        // Available from Totara 20.1/21 onwards
+        'mailer'             => 'server/mailer/{$name}',
     );
 
     /**
