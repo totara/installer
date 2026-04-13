@@ -2,6 +2,7 @@
 
 namespace TotaraInstaller\events;
 
+use Composer\Composer;
 use Composer\DependencyResolver\Operation\InstallOperation;
 use Composer\DependencyResolver\Operation\UpdateOperation;
 use Composer\Installer\InstallationManager;
@@ -44,7 +45,8 @@ final class Handler {
 
         $io->write("[TotaraInstaller][{$package->getName()}] Package installation");
 
-        static::installClient($package, $locker, $io, $manager);
+        $force_symlink = static::shouldForceSymlink($event->getComposer());
+        static::installClient($package, $locker, $io, $manager, $force_symlink);
 
         $locker->save();
     }
@@ -78,7 +80,8 @@ final class Handler {
         static::uninstallClient($initial_package, $locker, $io);
 
         // Install Second
-        static::installClient($target_package, $locker, $io, $manager);
+        $force_symlink = static::shouldForceSymlink($event->getComposer());
+        static::installClient($target_package, $locker, $io, $manager, $force_symlink);
 
         $locker->save();
     }
@@ -163,15 +166,43 @@ final class Handler {
     }
 
     /**
+     * Determine whether .client directories should be force-symlinked.
+     *
+     * Returns true only when BOTH of the following conditions are met:
+     *   1. Composer is running with --prefer-source (i.e. preferred-install === 'source')
+     *   2. The developer has opted in via the TOTARA_DEV_SYMLINK environment variable.
+     *
+     * Developers can enable this per-session, per-command, or persistently:
+     *   - One-off:    TOTARA_DEV_SYMLINK=1 composer install --prefer-source
+     *   - Persistent: add `export TOTARA_DEV_SYMLINK=1` to ~/.bashrc or ~/.zshrc
+     *
+     * @param Composer $composer
+     * @return bool
+     */
+    protected static function shouldForceSymlink(Composer $composer): bool {
+        // --prefer-source causes Composer to set preferred-install to the string 'source'.
+        // A per-package array value means no global --prefer-source flag was passed.
+        $preferred_install = $composer->getConfig()->get('preferred-install');
+        if ($preferred_install !== 'source') {
+            return false;
+        }
+
+        // Developer opt-in via environment variable.
+        $env = getenv('TOTARA_DEV_SYMLINK');
+        return $env !== false && $env !== '' && $env !== '0';
+    }
+
+    /**
      * Install package to client directory
      *
      * @param PackageInterface $package
      * @param ClientLocker $locker
      * @param IOInterface $io
      * @param InstallationManager $manager
+     * @param bool $force_symlink When true, force a symlink even if the package directory is not itself a symlink.
      * @return void
      */
-    protected static function installClient(PackageInterface $package, ClientLocker $locker, IOInterface $io, InstallationManager $manager): void {
+    protected static function installClient(PackageInterface $package, ClientLocker $locker, IOInterface $io, InstallationManager $manager, bool $force_symlink = false): void {
         // Figure out if this package has a client component at all (install, we treat it fresh)
         [$component_name, $source_path] = self::discover_client_path($manager, $package);
 
@@ -189,9 +220,9 @@ final class Handler {
         }
 
         $file_system = new Filesystem();
-        $is_symlink_install = Platform::isWindows()
+        $is_symlink_install = $force_symlink || (Platform::isWindows()
             ? $file_system->isJunction($manager->getInstallPath($package))
-            : $file_system->isSymlinkedDirectory($manager->getInstallPath($package));
+            : $file_system->isSymlinkedDirectory($manager->getInstallPath($package)));
         if ($is_symlink_install) {
             $cwd = Platform::getCwd();
             $source_absolute = $cwd . DIRECTORY_SEPARATOR . $source_path;
