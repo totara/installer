@@ -2,7 +2,6 @@
 
 namespace TotaraInstaller\events;
 
-use Composer\Composer;
 use Composer\DependencyResolver\Operation\InstallOperation;
 use Composer\DependencyResolver\Operation\UpdateOperation;
 use Composer\Installer\InstallationManager;
@@ -45,7 +44,7 @@ final class Handler {
 
         $io->write("[TotaraInstaller][{$package->getName()}] Package installation");
 
-        $force_symlink = static::shouldForceSymlink($event->getComposer());
+        $force_symlink = static::shouldForceSymlink($package);
         static::installClient($package, $locker, $io, $manager, $force_symlink);
 
         $locker->save();
@@ -80,7 +79,7 @@ final class Handler {
         static::uninstallClient($initial_package, $locker, $io);
 
         // Install Second
-        $force_symlink = static::shouldForceSymlink($event->getComposer());
+        $force_symlink = static::shouldForceSymlink($target_package);
         static::installClient($target_package, $locker, $io, $manager, $force_symlink);
 
         $locker->save();
@@ -169,21 +168,18 @@ final class Handler {
      * Determine whether .client directories should be force-symlinked.
      *
      * Returns true only when BOTH of the following conditions are met:
-     *   1. Composer is running with --prefer-source (i.e. preferred-install === 'source')
+     *   1. The package was installed from source (i.e. Composer was run with --prefer-source).
      *   2. The developer has opted in via the TOTARA_DEV_SYMLINK environment variable.
      *
      * Developers can enable this per-session, per-command, or persistently:
      *   - One-off:    TOTARA_DEV_SYMLINK=1 composer install --prefer-source
      *   - Persistent: add `export TOTARA_DEV_SYMLINK=1` to ~/.bashrc or ~/.zshrc
      *
-     * @param Composer $composer
+     * @param PackageInterface $package
      * @return bool
      */
-    protected static function shouldForceSymlink(Composer $composer): bool {
-        // --prefer-source causes Composer to set preferred-install to the string 'source'.
-        // A per-package array value means no global --prefer-source flag was passed.
-        $preferred_install = $composer->getConfig()->get('preferred-install');
-        if ($preferred_install !== 'source') {
+    protected static function shouldForceSymlink(PackageInterface $package): bool {
+        if ($package->getInstallationSource() !== 'source') {
             return false;
         }
 
