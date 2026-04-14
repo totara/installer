@@ -1,7 +1,6 @@
 <?php
 
-use Composer\Composer;
-use Composer\Config;
+use Composer\Package\PackageInterface;
 use PHPUnit\Framework\TestCase;
 use TotaraInstaller\events\Handler;
 
@@ -30,61 +29,62 @@ final class HandlerTest extends TestCase {
     // -------------------------------------------------------------------------
 
     /**
-     * Build a minimal Composer mock whose Config returns the given preferred-install value.
+     * Build a package mock whose getInstallationSource() returns the given value.
      */
-    private function make_composer($preferred_install): Composer {
-        $config = $this->createMock(Config::class);
-        $config->method('get')
-            ->with('preferred-install')
-            ->willReturn($preferred_install);
-
-        $composer = $this->createMock(Composer::class);
-        $composer->method('getConfig')->willReturn($config);
-
-        return $composer;
+    private function make_package(?string $installation_source): PackageInterface {
+        $package = $this->createMock(PackageInterface::class);
+        $package->method('getInstallationSource')->willReturn($installation_source);
+        return $package;
     }
 
     /**
      * Invoke the protected static Handler::shouldForceSymlink() via reflection.
      */
-    private function should_force_symlink(Composer $composer): bool {
+    private function should_force_symlink(PackageInterface $package): bool {
         $method = new ReflectionMethod(Handler::class, 'shouldForceSymlink');
-        return $method->invoke(null, $composer);
+        return $method->invoke(null, $package);
     }
+
+    // -------------------------------------------------------------------------
+    // Package was not installed from source — symlink must never be forced
+    // -------------------------------------------------------------------------
 
     public function testReturnsFalseWhenPreferredInstallIsNotSource(): void {
-        $this->assertFalse($this->should_force_symlink($this->make_composer('dist')));
-        $this->assertFalse($this->should_force_symlink($this->make_composer('auto')));
-
-        // A per-package preferred-install map means --prefer-source was not passed
-        // as a global CLI flag, so we should not force symlinks.
-        $per_package = ['vendor/some-package' => 'source', 'vendor/other' => 'dist'];
-        $this->assertFalse($this->should_force_symlink($this->make_composer($per_package)));
+        $this->assertFalse($this->should_force_symlink($this->make_package('dist')));
+        $this->assertFalse($this->should_force_symlink($this->make_package(null)));
     }
+
+    // -------------------------------------------------------------------------
+    // Package was installed from source but TOTARA_DEV_SYMLINK is absent/disabled
+    // -------------------------------------------------------------------------
 
     public function testReturnsFalseWhenEnvVarIsInvalid(): void {
-        $composer = $this->make_composer('source');
+        $package = $this->make_package('source');
         // TOTARA_DEV_SYMLINK was unset in setUp() - it currently has no value
-        $this->assertFalse($this->should_force_symlink($composer));
+        $this->assertFalse($this->should_force_symlink($package));
 
         putenv('TOTARA_DEV_SYMLINK=');
-        $this->assertFalse($this->should_force_symlink($composer));
+        $this->assertFalse($this->should_force_symlink($package));
 
         putenv('TOTARA_DEV_SYMLINK=0');
-        $this->assertFalse($this->should_force_symlink($composer));
+        $this->assertFalse($this->should_force_symlink($package));
     }
 
+    // -------------------------------------------------------------------------
+    // Both conditions met — symlink must be forced
+    // -------------------------------------------------------------------------
+
     public function testReturnsTrueWhenPreferSourceAndEnvVarIsSet(): void {
-        $composer = $this->make_composer('source');
+        $package = $this->make_package('source');
 
         putenv('TOTARA_DEV_SYMLINK=1');
-        $this->assertTrue($this->should_force_symlink($composer));
+        $this->assertTrue($this->should_force_symlink($package));
 
         putenv('TOTARA_DEV_SYMLINK=true');
-        $this->assertTrue($this->should_force_symlink($composer));
+        $this->assertTrue($this->should_force_symlink($package));
 
         putenv('TOTARA_DEV_SYMLINK=yes');
-        $this->assertTrue($this->should_force_symlink($composer));
+        $this->assertTrue($this->should_force_symlink($package));
     }
 
 }
