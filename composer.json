@@ -20,5 +20,9 @@
   },
   "require": {
     "composer-plugin-api": "^2.6"
+  },
+  "scripts": {
+    "test": "phpunit",
+    "test-coverage": "phpunit --coverage-text"
   }
 }
