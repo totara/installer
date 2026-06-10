@@ -1,5 +1,7 @@
 # Totara Composer Installer Plugin
 
+[![Unit Tests](https://github.com/totara/installer/actions/workflows/tests.yml/badge.svg)](https://github.com/totara/installer/actions/workflows/tests.yml)
+
 A Composer plugin that installs Totara plugins into the correct location inside a
 Totara codebase.
 

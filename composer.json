@@ -1,5 +1,6 @@
 {
   "name": "totara/installer",
+  "description": "A Composer plugin that installs Totara plugins into the correct location inside a Totara codebase.",
   "type": "composer-plugin",
   "license": "MIT",
   "autoload": {
