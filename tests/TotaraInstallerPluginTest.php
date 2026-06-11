@@ -12,8 +12,8 @@ use TotaraInstaller\TotaraInstallerPlugin;
 
 final class TotaraInstallerPluginTest extends TestCase {
 
-    /** @var string|false Original working directory, restored in tearDown(). */
-    private $original_cwd;
+    /** Original working directory, restored in tearDown(). */
+    private string|false $original_cwd;
 
     protected function setUp(): void {
         $this->original_cwd = getcwd();
