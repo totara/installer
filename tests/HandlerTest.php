@@ -14,7 +14,8 @@ use TotaraInstaller\Filesystem;
 
 final class HandlerTest extends TestCase {
 
-    private $original_env;
+    /** Snapshot of TOTARA_DEV_SYMLINK, restored in tearDown(). */
+    private string|false $original_env;
 
     protected function setUp(): void {
         // Snapshot the current env value and start each test with the var absent,
@@ -102,17 +103,17 @@ final class HandlerTest extends TestCase {
     /**
      * Invoke any protected static method on Handler via reflection.
      */
-    private function invoke_static(string $method, array $args) {
+    private function invoke_static(string $method, array $args): mixed {
         return (new ReflectionMethod(Handler::class, $method))->invokeArgs(null, $args);
     }
 
     /**
-     * Build a package stub with the given type (and optional name).
+     * Build a package stub with the given type, named 'totara/example'.
      */
-    private function make_typed_package(string $type, string $name = 'totara/example'): PackageInterface {
+    private function make_typed_package(string $type): PackageInterface {
         return $this->createConfiguredStub(PackageInterface::class, [
             'getType' => $type,
-            'getName' => $name,
+            'getName' => 'totara/example',
         ]);
     }
 
